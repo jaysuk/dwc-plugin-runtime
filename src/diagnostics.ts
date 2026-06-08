@@ -7,8 +7,8 @@
  * this bundleable into any plugin and stable across DWC versions. The payoff loop: a captured report's
  * `model` + `state` replay straight into a dwc-plugin-test-kit mount test to reproduce and lock a fix.
  */
-import { copyText } from "./clipboard";
-import { downloadBlob } from "./download";
+import { copyText } from "./clipboard.js";
+import { downloadBlob } from "./download.js";
 
 export interface DiagEntry { time: string; source: string; message: string; stack?: string }
 
