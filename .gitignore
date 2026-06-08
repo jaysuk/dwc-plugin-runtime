@@ -1,0 +1,6 @@
+# Built by `npm run build` / the `prepare` lifecycle on install. Not committed; consumers installing
+# from github run `prepare` to produce it.
+dist/
+
+node_modules/
+coverage/
