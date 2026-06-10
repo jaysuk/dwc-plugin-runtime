@@ -73,4 +73,18 @@ describe("diagnostics", () => {
 		expect(report.plugin.version).toBe("unknown");
 		expect(report.firmware.version).toBe("unknown");
 	});
+
+	it("redacts the host from the page URL so the machine address can't leak", () => {
+		const original = location.pathname + location.search;
+		window.history.replaceState({}, "", "/Settings/flexibleLayouts?path=foo");
+		try {
+			const report = buildReport({ pluginId: "X" });
+			// Protocol + path kept, host (whatever it is) redacted, query dropped.
+			expect(report.environment.url).toBe(`${location.protocol}//<redacted>/Settings/flexibleLayouts`);
+			expect(report.environment.url).not.toContain(location.host);
+			expect(report.environment.url).not.toContain("?path=");
+		} finally {
+			window.history.replaceState({}, "", original || "/");
+		}
+	});
 });

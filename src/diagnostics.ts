@@ -106,6 +106,13 @@ function probeDwcVersion(): string {
 	try { return (globalThis as { DWC?: { version?: string } }).DWC?.version ?? "unknown"; } catch { return "unknown"; }
 }
 
+// Protocol + path with the host (IP/hostname/port) redacted and the query string dropped, so the
+// machine's address can't leak via the page URL when the rest of the network details are scrubbed.
+function scrubLocation(): string {
+	if (typeof location === "undefined") return "unknown";
+	try { return `${location.protocol}//${REDACTED}${location.pathname}`; } catch { return "unknown"; }
+}
+
 /**
  * Assemble a diagnostic report. Versions are read from the object model's `plugins[id]` record when
  * available (the authoritative installed version), falling back to a probe / "unknown". Pass the live
@@ -132,8 +139,10 @@ export function buildReport(opts: {
 		environment: {
 			userAgent: typeof navigator !== "undefined" ? navigator.userAgent : "unknown",
 			viewport: typeof window !== "undefined" ? `${window.innerWidth}x${window.innerHeight}` : "unknown",
-			// Strip the query string — it can carry plugin state (e.g. an object-model ?path=).
-			url: typeof location !== "undefined" ? location.href.split("?")[0] : "unknown",
+			// Keep protocol + path for diagnostics, but redact the host: the machine's IP/hostname is
+			// exactly what sanitizeModel scrubs from the model, so it must not leak via the URL either.
+			// The query string is dropped too — it can carry plugin state (e.g. an object-model ?path=).
+			url: scrubLocation(),
 		},
 		errors: getErrors(),
 		state: opts.state,
