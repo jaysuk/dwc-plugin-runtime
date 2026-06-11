@@ -203,6 +203,161 @@ export async function checkForUpdate(options: CheckForUpdateOptions): Promise<Up
 	};
 }
 
+/**
+ * Strip the machine-readable comment and the static release footer from a release body, leaving
+ * only the human-readable changelog. The footer begins with a `---` rule that immediately precedes
+ * the `### 📦 Install` heading (or any `### ` heading that follows the rule). Trims surrounding
+ * whitespace.
+ */
+export function cleanReleaseNotes(body: string): string {
+	// Remove the machine-readable comment wherever it appears.
+	let s = body.replace(/<!--\s*dwc-plugin-update\s*{[\s\S]*?}\s*-->/g, "");
+	// Strip everything from the `---` line immediately before the Install heading onward.
+	// The footer pattern: a `---` line, then (after optional blank lines) a `### ` heading.
+	s = s.replace(/\r?\n---\r?\n(?:[\s\S]*?(?:\r?\n|^))?### 📦 Install[\s\S]*/m, "");
+	// Fallback: strip a trailing `---` line if no heading was found (keeps changelog clean).
+	s = s.replace(/\r?\n---\s*$/, "");
+	return s.trim();
+}
+
+/**
+ * HTML-escape a plain text string (no DOM dependency — pure string replace).
+ * MUST be called before any HTML transforms so user content cannot inject tags.
+ */
+function escapeHtml(text: string): string {
+	return text
+		.replace(/&/g, "&amp;")
+		.replace(/</g, "&lt;")
+		.replace(/>/g, "&gt;")
+		.replace(/"/g, "&quot;")
+		.replace(/'/g, "&#39;");
+}
+
+/**
+ * Convert a (already-cleaned) Markdown release-notes string to a simple HTML fragment suitable for
+ * `v-html` / `innerHTML`. Security: HTML-escapes each line first, then applies transforms on the
+ * escaped text — so `<script>` in user content comes out as `&lt;script&gt;`, never executed.
+ *
+ * Supported transforms (applied in this order per line after escaping):
+ *  - `### ` / `## ` headings → `<h4>` with inline style
+ *  - `**bold**` → `<strong>`
+ *  - `` `code` `` → `<code>`
+ *  - Lines starting `- ` → bullet div (after bold/code so bold bullets render correctly)
+ *  - Lines starting `&gt; ` (escaped `> ` blockquote) → muted div
+ *  - `---` alone → `<hr>`
+ *  - Blank lines → spacer div
+ *  - Everything else → plain `<div>` paragraph
+ */
+export function formatReleaseNotesHtml(markdown: string): string {
+	const lines = markdown.split(/\r?\n/);
+	const parts: string[] = [];
+
+	for (const raw of lines) {
+		// Step 1: HTML-escape the raw line so any HTML special chars are neutralised.
+		let line = escapeHtml(raw);
+
+		// Step 2: apply inline transforms on the escaped text.
+		// Bold — match **..** (may appear on heading or bullet lines too).
+		line = line.replace(/\*\*([\s\S]*?)\*\*/g, "<strong>$1</strong>");
+		// Inline code — match `..`
+		line = line.replace(/`([^`]+)`/g, "<code>$1</code>");
+
+		// Step 3: block-level classification.
+		if (/^###\s+/.test(line)) {
+			// h3 → h4 with styling
+			const text = line.replace(/^###\s+/, "");
+			parts.push(`<h4 style="margin:0.6em 0 0.2em;font-weight:600">${text}</h4>`);
+		} else if (/^##\s+/.test(line)) {
+			const text = line.replace(/^##\s+/, "");
+			parts.push(`<h4 style="margin:0.8em 0 0.25em;font-weight:700">${text}</h4>`);
+		} else if (/^-\s/.test(line)) {
+			// Bullet (raw line starts with `- `, so after escaping it's still `- `)
+			const text = line.replace(/^-\s/, "");
+			parts.push(`<div style="margin-left:1em">• ${text}</div>`);
+		} else if (/^&gt;\s/.test(line)) {
+			// Blockquote (raw `> ` → escaped `&gt; `)
+			const text = line.replace(/^&gt;\s/, "");
+			parts.push(`<div style="color:var(--v-medium-emphasis-opacity,0.6);padding-left:0.75em;border-left:2px solid currentColor">${text}</div>`);
+		} else if (line === "---") {
+			parts.push(`<hr style="margin:0.5em 0;opacity:0.3">`);
+		} else if (line.trim() === "") {
+			parts.push(`<div style="height:0.4em"></div>`);
+		} else {
+			parts.push(`<div>${line}</div>`);
+		}
+	}
+	return parts.join("\n");
+}
+
+/** A single release entry from fetchReleaseHistory. */
+export interface ReleaseHistoryEntry {
+	/** Version string (tag minus leading `v`). */
+	version: string;
+	/** Human-readable release name, or the tag if the release has no name. */
+	name: string;
+	/** Cleaned release notes (comment + footer stripped). */
+	notes: string;
+}
+
+export interface FetchReleaseHistoryOptions {
+	/** GitHub repo owner. */
+	owner: string;
+	/** GitHub repo name. */
+	repo: string;
+	/**
+	 * Only include releases NEWER than this version (the currently-installed version). Pass "0.0.0"
+	 * to get all releases.
+	 */
+	sinceVersion: string;
+	/** Injectable for tests / non-browser. Defaults to global `fetch`. */
+	fetchImpl?: typeof fetch;
+}
+
+/**
+ * Fetch the last 20 GitHub releases for a repo and return those newer than `sinceVersion`, sorted
+ * newest-first. Drafts are excluded. Never throws — returns [] on any network or parse error.
+ */
+export async function fetchReleaseHistory(options: FetchReleaseHistoryOptions): Promise<ReleaseHistoryEntry[]> {
+	const { owner, repo, sinceVersion } = options;
+	const doFetch = options.fetchImpl ?? fetch;
+
+	interface GhListRelease {
+		tag_name: string;
+		name?: string;
+		body?: string;
+		draft?: boolean;
+	}
+
+	let releases: GhListRelease[];
+	try {
+		const res = await doFetch(
+			`https://api.github.com/repos/${owner}/${repo}/releases?per_page=20`,
+			{ headers: { Accept: "application/vnd.github+json" } },
+		);
+		if (!res.ok) return [];
+		releases = (await res.json()) as GhListRelease[];
+	} catch {
+		return [];
+	}
+
+	try {
+		return releases
+			.filter((r) => !r.draft)
+			.map((r) => {
+				const version = (r.tag_name || "").replace(/^[vV]/, "");
+				return {
+					version,
+					name: (r.name && r.name.trim()) ? r.name.trim() : r.tag_name,
+					notes: cleanReleaseNotes(r.body ?? ""),
+				};
+			})
+			.filter((r) => r.version && compareVersions(r.version, sinceVersion) > 0)
+			.sort((a, b) => compareVersions(b.version, a.version));
+	} catch {
+		return [];
+	}
+}
+
 export interface ApplyUpdateOptions {
 	/** Direct ZIP URL (UpdateResult.assetUrl). */
 	assetUrl: string;

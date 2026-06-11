@@ -1,6 +1,173 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { applyUpdate, checkForUpdate, compareVersions, isDwcCompatible } from "../src/updates.js";
+import {
+	applyUpdate, checkForUpdate, cleanReleaseNotes, compareVersions, fetchReleaseHistory,
+	formatReleaseNotesHtml, isDwcCompatible,
+} from "../src/updates.js";
+
+// ────────────────────────────────────────────────────────────────────────────
+// cleanReleaseNotes
+// ────────────────────────────────────────────────────────────────────────────
+
+const FOOTER = `
+---
+
+### 📦 Install
+1. Download the ZIP.
+
+> Built against **DuetWebControl 3.7.0**.
+
+<!-- dwc-plugin-update {"version":"1.0.20","dwcVersion":"3.7","asset":"FlexibleLayouts-1.0.20.zip"} -->
+`;
+
+describe("cleanReleaseNotes", () => {
+	it("strips the machine-readable comment", () => {
+		const body = 'changelog\n<!-- dwc-plugin-update {"v":"1"} -->\nmore';
+		const result = cleanReleaseNotes(body);
+		expect(result).not.toContain("dwc-plugin-update");
+		expect(result).toContain("changelog");
+	});
+
+	it("strips the static footer (--- + Install heading onward)", () => {
+		const body = "## Changelog\n- did a thing\n" + FOOTER;
+		const result = cleanReleaseNotes(body);
+		expect(result).toContain("did a thing");
+		expect(result).not.toContain("📦 Install");
+		expect(result).not.toContain("dwc-plugin-update");
+	});
+
+	it("returns trimmed body minus comment when no footer marker found", () => {
+		const body = "  - fix: something\n- feat: other  ";
+		expect(cleanReleaseNotes(body)).toBe("- fix: something\n- feat: other");
+	});
+});
+
+// ────────────────────────────────────────────────────────────────────────────
+// formatReleaseNotesHtml
+// ────────────────────────────────────────────────────────────────────────────
+
+describe("formatReleaseNotesHtml", () => {
+	it("HTML-escapes <script> tags (XSS prevention)", () => {
+		const html = formatReleaseNotesHtml("<script>alert(1)</script>");
+		expect(html).not.toContain("<script>");
+		expect(html).toContain("&lt;script&gt;");
+	});
+
+	it("escapes & and quotes", () => {
+		const html = formatReleaseNotesHtml('Tom & Jerry "quoted"');
+		expect(html).toContain("&amp;");
+		expect(html).toContain("&quot;");
+	});
+
+	it("renders ### heading as <h4>", () => {
+		const html = formatReleaseNotesHtml("### My Heading");
+		expect(html).toContain("<h4");
+		expect(html).toContain("My Heading");
+	});
+
+	it("renders ## heading as <h4>", () => {
+		const html = formatReleaseNotesHtml("## Another");
+		expect(html).toContain("<h4");
+	});
+
+	it("renders **bold** as <strong>", () => {
+		const html = formatReleaseNotesHtml("Some **bold** text");
+		expect(html).toContain("<strong>bold</strong>");
+	});
+
+	it("renders bullet with bold correctly — <strong> not literal escaped tags", () => {
+		// This was the bug: `- **scope:** msg` was rendering &lt;strong&gt; inside bullets.
+		const html = formatReleaseNotesHtml("- **scope:** fixed it");
+		expect(html).toContain("<strong>scope:</strong>");
+		expect(html).not.toContain("&lt;strong&gt;");
+		expect(html).toContain("•");
+	});
+
+	it("renders `code` as <code>", () => {
+		const html = formatReleaseNotesHtml("Run `npm install`");
+		expect(html).toContain("<code>npm install</code>");
+	});
+
+	it("renders --- as <hr>", () => {
+		const html = formatReleaseNotesHtml("---");
+		expect(html).toContain("<hr");
+	});
+
+	it("renders blank line as spacer div", () => {
+		const html = formatReleaseNotesHtml("line1\n\nline2");
+		expect(html).toContain('height:0.4em');
+	});
+});
+
+// ────────────────────────────────────────────────────────────────────────────
+// fetchReleaseHistory
+// ────────────────────────────────────────────────────────────────────────────
+
+function listReleaseResponse(releases: unknown[]) {
+	return { ok: true, status: 200, json: async () => releases } as unknown as Response;
+}
+
+describe("fetchReleaseHistory", () => {
+	it("filters out releases not newer than sinceVersion and sorts newest-first", async () => {
+		const fetchImpl = vi.fn(async () => listReleaseResponse([
+			{ tag_name: "v1.0.20", name: "Savasana", body: "feat: gallery", draft: false },
+			{ tag_name: "v1.0.19", name: "Warrior", body: "fix: something", draft: false },
+			{ tag_name: "v1.0.18", name: "Cobra", body: "chore: bump", draft: false },
+		]));
+		const result = await fetchReleaseHistory({
+			owner: "jaysuk", repo: "Demo", sinceVersion: "1.0.19",
+			fetchImpl: fetchImpl as unknown as typeof fetch,
+		});
+		// Only v1.0.20 is newer than 1.0.19
+		expect(result).toHaveLength(1);
+		expect(result[0].version).toBe("1.0.20");
+		expect(result[0].name).toBe("Savasana");
+	});
+
+	it("excludes drafts", async () => {
+		const fetchImpl = vi.fn(async () => listReleaseResponse([
+			{ tag_name: "v1.0.21", name: "Draft", body: "", draft: true },
+			{ tag_name: "v1.0.20", name: "Published", body: "", draft: false },
+		]));
+		const result = await fetchReleaseHistory({
+			owner: "jaysuk", repo: "Demo", sinceVersion: "1.0.19",
+			fetchImpl: fetchImpl as unknown as typeof fetch,
+		});
+		expect(result.every((r) => r.name !== "Draft")).toBe(true);
+	});
+
+	it("returns [] and never throws on a failed fetch", async () => {
+		const fetchImpl = vi.fn(async () => { throw new Error("offline"); });
+		const result = await fetchReleaseHistory({
+			owner: "jaysuk", repo: "Demo", sinceVersion: "1.0.0",
+			fetchImpl: fetchImpl as unknown as typeof fetch,
+		});
+		expect(result).toEqual([]);
+	});
+
+	it("returns [] on non-ok HTTP response", async () => {
+		const fetchImpl = vi.fn(async () => ({ ok: false, status: 403 } as unknown as Response));
+		const result = await fetchReleaseHistory({
+			owner: "jaysuk", repo: "Demo", sinceVersion: "1.0.0",
+			fetchImpl: fetchImpl as unknown as typeof fetch,
+		});
+		expect(result).toEqual([]);
+	});
+
+	it("applies cleanReleaseNotes to strip footer from notes", async () => {
+		const body = "- feat: gallery\n---\n### 📦 Install\ndownload it\n<!-- dwc-plugin-update {} -->";
+		const fetchImpl = vi.fn(async () => listReleaseResponse([
+			{ tag_name: "v1.0.20", name: "Release", body, draft: false },
+		]));
+		const result = await fetchReleaseHistory({
+			owner: "jaysuk", repo: "Demo", sinceVersion: "1.0.19",
+			fetchImpl: fetchImpl as unknown as typeof fetch,
+		});
+		expect(result[0].notes).not.toContain("📦 Install");
+		expect(result[0].notes).not.toContain("dwc-plugin-update");
+		expect(result[0].notes).toContain("feat: gallery");
+	});
+});
 
 describe("compareVersions", () => {
 	it("orders numeric segments", () => {
