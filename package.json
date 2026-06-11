@@ -1,8 +1,8 @@
 {
   "name": "dwc-plugin-runtime",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "type": "module",
-  "description": "Shared RUNTIME utilities for DuetWebControl (Vue 3) plugins: user-initiated diagnostics capture (privacy-scrubbed report), clipboard (execCommand fallback for plain-HTTP Duets), and file download. Bundled into the plugin (not externalised). Pairs with dwc-plugin-test-kit: a captured report replays into a mount test.",
+  "description": "Shared RUNTIME utilities for DuetWebControl (Vue 3) plugins: user-initiated diagnostics capture (privacy-scrubbed report), clipboard (execCommand fallback for plain-HTTP Duets), file download, and self-update (GitHub release check + one-click apply via DWC's installer). Bundled into the plugin (not externalised). Pairs with dwc-plugin-test-kit: a captured report replays into a mount test.",
   "license": "MIT",
   "homepage": "https://github.com/jaysuk/dwc-plugin-runtime",
   "main": "dist/index.js",
@@ -24,6 +24,10 @@
       "types": "./dist/download.d.ts",
       "import": "./dist/download.js"
     },
+    "./updates": {
+      "types": "./dist/updates.d.ts",
+      "import": "./dist/updates.js"
+    },
     "./package.json": "./package.json"
   },
   "files": [
@@ -37,6 +41,9 @@
     "prepare": "npm run build",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run"
+  },
+  "dependencies": {
+    "jszip": "^3.10.1"
   },
   "devDependencies": {
     "happy-dom": "^15.11.7",
