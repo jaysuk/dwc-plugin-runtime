@@ -88,11 +88,11 @@ describe("checkForUpdate", () => {
 });
 
 describe("applyUpdate", () => {
-	it("downloads the asset and hands a JSZip to the injected installer", async () => {
-		// A minimal valid ZIP (empty archive) so JSZip.loadAsync succeeds.
+	it("downloads the asset and hands the blob to the injected installer", async () => {
+		// Create a minimal valid ZIP blob for download simulation.
 		const { default: JSZip } = await import("jszip");
-		const blob = await new JSZip().generateAsync({ type: "blob" });
-		const fetchImpl = vi.fn(async () => ({ ok: true, status: 200, blob: async () => blob } as unknown as Response));
+		const zipBlob = await new JSZip().generateAsync({ type: "blob" });
+		const fetchImpl = vi.fn(async () => ({ ok: true, status: 200, blob: async () => zipBlob } as unknown as Response));
 		const installPlugin = vi.fn(async () => {});
 		await applyUpdate({
 			assetUrl: "https://example/Demo-1.0.1.zip", assetName: "Demo-1.0.1.zip",
@@ -100,7 +100,8 @@ describe("applyUpdate", () => {
 		});
 		expect(installPlugin).toHaveBeenCalledOnce();
 		expect(installPlugin.mock.calls[0][0]).toBe("Demo-1.0.1.zip");
-		expect(installPlugin.mock.calls[0][3]).toBe(true);
+		expect(installPlugin.mock.calls[0][1]).toBeInstanceOf(Blob);
+		expect(installPlugin.mock.calls[0][2]).toBe(true);
 	});
 
 	it("throws on a failed download", async () => {

@@ -5,13 +5,14 @@
  * Deliberately store-agnostic, like the rest of this package: it reads the running DWC version from
  * the global `window.DWC.version` (DWC 3.7.0-alpha.7+) and takes the actual install action as an
  * injected callback, so it never imports `@/stores/*`. The consuming plugin wires
- * `useMachineStore().installPlugin` in. No telemetry beyond the GitHub API calls the plugin opts into.
+ * `useMachineStore().installPlugin` in. DWC 3.7 dd57f65+ has optional JSZip in installPlugin, so
+ * the plugin can just pass a blob and DWC reconstructs it — zero bundled deps. No telemetry beyond
+ * the GitHub API calls the plugin opts into.
  *
  * Two scenarios are distinguished so the UI can guide the user:
  *  - `pluginUpdate` — a newer release that's compatible with the DWC they're running (one-click apply);
  *  - `dwcUpdate`   — a newer release that needs a newer DWC than they have (update DWC first).
  */
-import JSZip from "jszip";
 
 /** Outcome of a version check. `updateAvailable` is true for both `pluginUpdate` and `dwcUpdate`. */
 export type UpdateScenario = "upToDate" | "pluginUpdate" | "dwcUpdate" | "unknown";
@@ -208,11 +209,11 @@ export interface ApplyUpdateOptions {
 	/** Filename for the upload (UpdateResult.assetName). */
 	assetName: string;
 	/**
-	 * DWC's installer, injected by the plugin: `(filename, blob, zipFile, start) => Promise<void>`.
-	 * Pass `useMachineStore().installPlugin`. It validates the manifest + DWC compatibility, uploads,
-	 * and hot-loads the new bundle when `start` is true.
+	 * DWC's installer, injected by the plugin: `(filename, blob, start) => Promise<void>`.
+	 * Pass `useMachineStore().installPlugin`. DWC 3.7+ validates the manifest + DWC compatibility,
+	 * uploads the ZIP (optionally reconstructing JSZip from the blob), and hot-loads the bundle.
 	 */
-	installPlugin: (filename: string, blob: Blob, zipFile: JSZip, start: boolean) => Promise<void>;
+	installPlugin: (filename: string, blob: Blob, start: boolean) => Promise<void>;
 	/** Start (hot-reload) the plugin after install. Default true. */
 	start?: boolean;
 	/** Injectable for tests. Defaults to global `fetch`. */
@@ -231,6 +232,5 @@ export async function applyUpdate(options: ApplyUpdateOptions): Promise<void> {
 		throw new Error(`Could not download the update (${res.status})`);
 	}
 	const blob = await res.blob();
-	const zipFile = await JSZip.loadAsync(blob);
-	await options.installPlugin(options.assetName, blob, zipFile, options.start ?? true);
+	await options.installPlugin(options.assetName, blob, options.start ?? true);
 }
