@@ -7,3 +7,4 @@ export * from "./diagnostics.js";
 export * from "./clipboard.js";
 export * from "./download.js";
 export * from "./updates.js";
+export * from "./updateHub.js";
