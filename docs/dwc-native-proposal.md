@@ -9,6 +9,23 @@ work around in userland and would be cleaner as a first-class DWC capability. Or
 Everything here works *today* via the runtime; these are about making the common cases native so every
 plugin author doesn't re-solve them.
 
+> **Status update (DWC `v3.7-dev` @ b9b93bb, "Improved plugin subsystem").** Several of these are now
+> addressed natively — thanks! Summary:
+>
+> | # | Item | Status |
+> |---|------|--------|
+> | 1 | Embeddable widget config/props contract | ❌ Outstanding (we ship a runtime framework for it) |
+> | 2 | Plugin assets (WASM/worker) + `pluginAssetUrl` | ✅ Done |
+> | 3 | Awaitable motion primitive | ❌ Outstanding |
+> | 4 | Standalone type-checking | ✅ Done (build-time check vs DWC's real types) |
+> | 5 | Dev-mode / HMR plugin loading | ❌ Outstanding |
+> | 6 | CSP / cross-origin / mixed-content | ✅ Done (documented; no CSP shipped) |
+> | 7 | `registerRoute` idempotency | ✅ Done |
+> | 8 | Native plugin-update popup | ❌ Outstanding |
+> | — | `installPlugin` documented; composables externalised | ✅ Done |
+>
+> The four ❌ are the remaining asks; the ✅ items below are kept for context (struck where done).
+
 ---
 
 ## 1. A widget config/props contract for embeddable components  ⭐ highest impact
