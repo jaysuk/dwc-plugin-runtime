@@ -8,3 +8,5 @@ export * from "./clipboard.js";
 export * from "./download.js";
 export * from "./updates.js";
 export * from "./updateHub.js";
+export * from "./widgetConfig.js";
+export * from "./pluginWidgetConfigForm.js";
