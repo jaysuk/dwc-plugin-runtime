@@ -242,15 +242,23 @@ RFC just promotes it to a shared, host-readable schema.
 
 ---
 
-## 12. Open questions
+## 12. Decisions
 
-1. **Schema vs DWC's `registerEmbeddableComponent`** — keep the schema in the runtime registry (this
-   RFC), or push to extend the DWC embeddable record? Runtime-now; DWC-native later.
-2. **Field renderer discovery** — does the host pass a `FieldRendererMap` per editor mount, or register
-   renderers globally in the runtime registry? Per-mount is simpler and keeps the host in control.
-3. **Reactivity of `config`** — pass a reactive object the component mutates (host watches), or
-   immutable + `setConfig(patch)`? Prefer `setConfig` for clear persistence, with a reactive read copy.
-4. **Validation** — should the schema carry validators (and surface errors in the form), or is
-   min/max/step enough for v1? Suggest min/max/step for v1, validators later.
-5. **Naming/package** — extend `dwc-plugin-runtime` (recommended; matches the update hub) or a sibling
-   `dwc-plugin-widgets`? Runtime, exported under `dwc-plugin-runtime/widget-config`.
+1. **Field-renderer discovery** — **the host passes a `FieldRendererMap` per editor mount.** Simplest,
+   keeps the host in control of its own object-model-aware pickers, and avoids a second global
+   registry. The runtime ships primitive renderers; the host adds `omPath`/`color`/`gcode`/`icon`.
+2. **Reactivity of `config`** — **immutable read + `setConfig(patch)`.** The component reads a reactive
+   `config` and persists via `setConfig`, so the host owns when/how config is written to its layout
+   document (no surprise deep mutations). Internally a host may pass a reactive copy for read.
+3. **Validation** — **min/max/step for v1**, with unknown/out-of-range values clamped on apply.
+   Pluggable validators (and inline error display) are a v2 addition; the `WidgetField` shape leaves
+   room (`validate?`) without committing to it now.
+4. **Packaging** — **extend `dwc-plugin-runtime`**, exported under `dwc-plugin-runtime/widget-config`
+   (matches the update hub; one dependency for plugins to track).
+5. **Schema home vs DWC** — keep the schema in the runtime registry **now** (no DWC change). A
+   **native DWC contract** is proposed separately in [`dwc-native-proposal.md`](./dwc-native-proposal.md);
+   if/when DWC adopts it, this framework becomes the compatibility shim / reference.
+
+### Still genuinely open (revisit during implementation)
+- Exact `host` capability surface (`isEditing`, `instanceId`, …) — start minimal, grow as consumers need.
+- Whether `PluginWidgetConfigForm` lives at `dwc-plugin-runtime/widget-config` or its own subpath export.
