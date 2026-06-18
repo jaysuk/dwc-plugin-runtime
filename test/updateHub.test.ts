@@ -6,6 +6,8 @@ import {
 	clearAnnouncedUpdate,
 	getAnnouncedUpdates,
 	isUpdateHostActive,
+	registerUpdateChecker,
+	runAllUpdateChecks,
 	subscribeToUpdates,
 } from "../src/updateHub.js";
 import type { UpdateResult } from "../src/updates.js";
@@ -45,6 +47,25 @@ describe("update hub registry", () => {
 		off();
 		announceUpdate("B", "Plugin B", result("1.1.0")); // after unsubscribe — not counted
 		expect(hits).toBe(2);
+	});
+});
+
+describe("update checkers", () => {
+	it("runs every registered checker, isolates failures, and unregisters", async () => {
+		const calls: Array<string> = [];
+		const offA = registerUpdateChecker("A", () => { calls.push("A"); });
+		registerUpdateChecker("B", async () => { calls.push("B"); });
+		registerUpdateChecker("C", () => { throw new Error("boom"); }); // must not break the others
+
+		await runAllUpdateChecks();
+		expect(calls.sort()).toEqual(["A", "B"]);
+
+		// Re-registering the same id replaces; unregister removes.
+		calls.length = 0;
+		offA();
+		registerUpdateChecker("B", () => { calls.push("B2"); });
+		await runAllUpdateChecks();
+		expect(calls).toEqual(["B2"]);
 	});
 });
 

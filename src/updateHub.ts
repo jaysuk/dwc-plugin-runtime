@@ -18,9 +18,13 @@ export interface AnnouncedUpdate extends UpdateResult {
 	name: string;
 }
 
+/** A plugin's own update check, registered so any UI (e.g. another plugin's "Check now") can trigger it. */
+export type UpdateChecker = () => void | Promise<void>;
+
 interface HubState {
 	updates?: Map<string, AnnouncedUpdate>;
 	hosts?: number;
+	checkers?: Map<string, UpdateChecker>;
 }
 
 const KEY = "__dwcPluginUpdateHub";
@@ -98,4 +102,37 @@ export function claimUpdateHost(): () => void {
 /** Whether a host is currently present to show the aggregated popup. */
 export function isUpdateHostActive(): boolean {
 	return (hub().hosts ?? 0) > 0;
+}
+
+function checkers(): Map<string, UpdateChecker> {
+	const h = hub();
+	if (!h.checkers) {
+		h.checkers = new Map();
+	}
+	return h.checkers;
+}
+
+/**
+ * Register this plugin's update check with the shared hub so another plugin's "Check now" can trigger
+ * it too. Keyed by plugin id (re-registering replaces). Returns an unregister function.
+ */
+export function registerUpdateChecker(pluginId: string, check: UpdateChecker): () => void {
+	checkers().set(pluginId, check);
+	return () => { hub().checkers?.delete(pluginId); };
+}
+
+/**
+ * Run every registered plugin's update check (in parallel), so one plugin's "Check now" refreshes all
+ * of them; each plugin re-announces its result into the hub. Never throws — a failing checker is
+ * isolated from the rest.
+ */
+export async function runAllUpdateChecks(): Promise<void> {
+	const all = [...checkers().values()];
+	await Promise.all(all.map(async (check) => {
+		try {
+			await check();
+		} catch {
+			/* one plugin's check failing must not stop the others */
+		}
+	}));
 }
