@@ -1,0 +1,57 @@
+name: Release
+
+# Publishes a GitHub Release for a version tag, with notes generated from Conventional-Commit history
+# by this repo's own scripts/changelog.mjs — the SAME generator every other Duet plugin fetches from
+# here (single source of truth). The runtime is consumed as a github: dependency, so there's no build
+# asset; the Release is just the changelog. Bump package.json, commit, then:
+#
+#   git tag v0.6.2 && git push origin v0.6.2
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0 # full history + tags so the changelog generator can find the previous tag
+          fetch-tags: true
+
+      - uses: actions/setup-node@v6
+        with: { node-version: 24 }
+
+      - name: Verify tag matches package version
+        run: |
+          VER=$(node -p "require('./package.json').version")
+          TAG="${GITHUB_REF_NAME#v}"
+          if [ "$VER" != "$TAG" ]; then
+            echo "::error::Tag '$TAG' != package.json version '$VER'. Bump package.json and re-tag."
+            exit 1
+          fi
+
+      - name: Generate release notes
+        id: changelog
+        run: |
+          {
+            echo 'body<<__CHANGELOG_EOF__'
+            node scripts/changelog.mjs
+            echo
+            echo '> Consumed as a github dependency: `npm install github:jaysuk/dwc-plugin-runtime#'"${GITHUB_REF_NAME}"'`'
+            echo '__CHANGELOG_EOF__'
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Publish Release
+        uses: softprops/action-gh-release@v3
+        with:
+          draft: false
+          name: ${{ github.ref_name }}
+          body: ${{ steps.changelog.outputs.body }}
