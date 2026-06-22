@@ -10,3 +10,4 @@ export * from "./updates.js";
 export * from "./updateHub.js";
 export * from "./widgetConfig.js";
 export * from "./pluginWidgetConfigForm.js";
+export * from "./helpTip.js";

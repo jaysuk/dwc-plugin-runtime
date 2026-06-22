@@ -15,4 +15,12 @@ describe("built dist resolves as valid ESM", () => {
 		const mod = await import("../dist/diagnostics.js");
 		expect(typeof mod.buildReport).toBe("function");
 	});
+
+	it("exports the HelpTip component (render-function, name + props)", async () => {
+		const mod = await import("../dist/index.js") as { HelpTip?: { name?: string; props?: Record<string, unknown> } };
+		expect(mod.HelpTip).toBeDefined();
+		expect(mod.HelpTip?.name).toBe("HelpTip");
+		expect(mod.HelpTip?.props).toHaveProperty("text");
+		expect(mod.HelpTip?.props).toHaveProperty("href");
+	});
 });
