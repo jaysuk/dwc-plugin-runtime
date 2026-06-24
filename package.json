@@ -1,6 +1,6 @@
 {
   "name": "dwc-plugin-runtime",
-  "version": "0.8.0",
+  "version": "0.8.1",
   "type": "module",
   "description": "Shared RUNTIME utilities for DuetWebControl (Vue 3) plugins: diagnostics capture (privacy-scrubbed), clipboard (execCommand fallback), file download, self-update (GitHub release check + one-click apply), cross-plugin update hub, and a widget-config framework (declarative schema + registry + schema-driven form) for FL-editable plugin widgets. Bundled into the plugin. Zero runtime deps (Vue is a peer).",
   "license": "MIT",

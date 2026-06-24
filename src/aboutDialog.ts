@@ -56,7 +56,7 @@ export const AboutDialog = defineComponent({
 		title: { type: String, required: true },
 		description: { type: String, default: "" },
 		/** The object model — for version / DWC / firmware / installed-plugin detection. */
-		model: { type: Object as PropType<unknown>, default: undefined },
+		model: { type: Object as PropType<unknown>, required: false },
 		/** Override the displayed version (else read from the installed plugin record). */
 		version: { type: String as PropType<string | undefined>, default: undefined },
 		repo: { type: String as PropType<string | undefined>, default: undefined },
@@ -64,7 +64,7 @@ export const AboutDialog = defineComponent({
 		docsLabel: { type: String, default: "Documentation" },
 		supportUrl: { type: String as PropType<string | undefined>, default: undefined },
 		updateAvailable: { type: Boolean, default: false },
-		latestVersion: { type: String as PropType<string | undefined>, default: undefined },
+		latestVersion: { type: String as PropType<string | null | undefined>, default: undefined },
 		checking: { type: Boolean, default: false },
 		applying: { type: Boolean, default: false },
 		pendingReload: { type: Boolean, default: false },
