@@ -11,3 +11,5 @@ export * from "./updateHub.js";
 export * from "./widgetConfig.js";
 export * from "./pluginWidgetConfigForm.js";
 export * from "./helpTip.js";
+export * from "./pluginFamily.js";
+export * from "./aboutDialog.js";
