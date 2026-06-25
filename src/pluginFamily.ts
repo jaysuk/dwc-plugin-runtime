@@ -19,7 +19,7 @@ export interface FamilyPlugin {
 
 /** The published jaysuk DWC plugin family (alphabetical by name). */
 export const PLUGIN_FAMILY: ReadonlyArray<FamilyPlugin> = [
-	{ id: "BdPressurePA", name: "bd_pressure PA Calibration", description: "Pressure-advance calibration for the bd_pressure sensor.", repo: "https://github.com/jaysuk/bd-pressure-dwc-plugin" },
+	{ id: "BdPressurePA", name: "bd_pressure PA Calibration", description: "Pressure-advance calibration for the bd_pressure sensor.", repo: "https://github.com/jaysuk/bd_pressure_dwc_plugin" },
 	{ id: "ClosedLoopTuning", name: "Closed Loop Tuning", description: "Tune Duet 3 closed-loop drivers (1HCL / M23CL) with automatic analysis.", repo: "https://github.com/jaysuk/ClosedLoopTuningPlugin" },
 	{ id: "DuetToolAlign", name: "Duet Tool Align", description: "Align multiple toolheads / nozzles to each other.", repo: "https://github.com/jaysuk/duet-tool-align" },
 	{ id: "DuetTmcTuner", name: "Duet TMC Tuner", description: "Auto-tune TMC stepper drivers (stealthChop / spreadCycle).", repo: "https://github.com/jaysuk/duet-tmc-tuner" },
