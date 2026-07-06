@@ -23,10 +23,22 @@
  *
  * Usage (inline, inside an existing About tab): identical props minus v-model — use <AboutPanel … />.
  */
-import { defineComponent, h, type ExtractPropTypes, type PropType, type VNode } from "vue";
+import { defineComponent, h, resolveComponent, type ExtractPropTypes, type PropType, type VNode } from "vue";
 
 import { buildReport, downloadReport } from "./diagnostics.js";
 import { getInstalledPlugin, isPluginInstalled, otherFamilyPlugins } from "./pluginFamily.js";
+
+/**
+ * Resolve a globally-registered Vuetify component by tag name for use in h(). Unlike the SFC
+ * template compiler (which inserts a resolveComponent() call for any non-native tag automatically),
+ * a hand-written render function does NOT do this: h("v-btn", ...) with a bare string tag creates an
+ * inert custom HTML element, not the real component - Vuetify's actual VBtn is never invoked, so the
+ * result is invisible/non-functional (this is exactly the bug that made the About dialog and its
+ * contents fail to render at all).
+ */
+function vc(name: string) {
+	return resolveComponent(name);
+}
 
 const STYLE_ID = "dwc-plugin-runtime-about-style";
 
@@ -98,36 +110,36 @@ function renderContent(props: PanelProps, emit: Emit): VNode {
 	const sectionTitle = (t: string): VNode => h("div", { class: "text-subtitle-2 mt-4 mb-1" }, t);
 	const link = (href: string, label: string): VNode => h("a", { href, target: "_blank", rel: "noopener", class: "dpr-about-link" }, label);
 
-	const identity = h("v-table", { density: "compact" }, () => h("tbody", {}, [
+	const identity = h(vc("v-table"), { density: "compact" }, () => h("tbody", {}, [
 		h("tr", {}, [h("td", {}, "Version"), h("td", {}, version)]),
 		h("tr", {}, [h("td", {}, "DWC"), h("td", {}, dwcVersion)]),
 		h("tr", {}, [h("td", {}, "Firmware"), h("td", {}, firmware)]),
 	]));
 
 	const updateBanner = props.updateAvailable
-		? h("v-alert", { type: "info", variant: "tonal", density: "compact", class: "mb-2" }, {
+		? h(vc("v-alert"), { type: "info", variant: "tonal", density: "compact", class: "mb-2" }, {
 			default: () => `Version ${props.latestVersion ?? ""} is available.`,
 			append: () => props.pendingReload
-				? h("v-btn", { size: "small", variant: "text", onClick: reload }, () => "Reload")
-				: h("v-btn", { size: "small", variant: "text", loading: props.applying, onClick: () => emit("apply-update") }, () => "Update"),
+				? h(vc("v-btn"), { size: "small", variant: "text", onClick: reload }, () => "Reload")
+				: h(vc("v-btn"), { size: "small", variant: "text", loading: props.applying, onClick: () => emit("apply-update") }, () => "Update"),
 		})
-		: h("v-alert", { type: "success", variant: "tonal", density: "compact", class: "mb-2" }, () => "You're on the latest version.");
+		: h(vc("v-alert"), { type: "success", variant: "tonal", density: "compact", class: "mb-2" }, () => "You're on the latest version.");
 	const updateControls = h("div", { class: "d-flex align-center flex-wrap ga-3" }, [
-		h("v-btn", { size: "small", variant: "tonal", prependIcon: "mdi-refresh", loading: props.checking, onClick: () => emit("check-update") }, () => "Check now"),
-		h("v-switch", { label: "Check automatically", modelValue: props.autoCheck, color: "primary", density: "compact", hideDetails: true, "onUpdate:modelValue": (v: unknown) => emit("toggle-auto-check", !!v) }),
+		h(vc("v-btn"), { size: "small", variant: "tonal", prependIcon: "mdi-refresh", loading: props.checking, onClick: () => emit("check-update") }, () => "Check now"),
+		h(vc("v-switch"), { label: "Check automatically", modelValue: props.autoCheck, color: "primary", density: "compact", hideDetails: true, "onUpdate:modelValue": (v: unknown) => emit("toggle-auto-check", !!v) }),
 	]);
 
 	const diagButtons: Array<VNode> = [
-		h("v-btn", { size: "small", variant: "tonal", prependIcon: "mdi-bug-outline", block: true, class: "mb-2", onClick: downloadDiagnostics }, () => "Download diagnostic report"),
-		...props.extraActions.map((a) => h("v-btn", { size: "small", variant: "tonal", color: a.color, prependIcon: a.icon, disabled: a.disabled, block: true, class: "mb-2", onClick: a.onClick }, () => a.label)),
+		h(vc("v-btn"), { size: "small", variant: "tonal", prependIcon: "mdi-bug-outline", block: true, class: "mb-2", onClick: downloadDiagnostics }, () => "Download diagnostic report"),
+		...props.extraActions.map((a) => h(vc("v-btn"), { size: "small", variant: "tonal", color: a.color, prependIcon: a.icon, disabled: a.disabled, block: true, class: "mb-2", onClick: a.onClick }, () => a.label)),
 	];
 
 	const family: Array<VNode> = (props.showFamily && others.length > 0)
 		? [sectionTitle("More plugins by jaysuk"), h("div", { class: "dpr-about-famlist" }, others.map((p) => h("div", { key: p.id, class: "dpr-about-fam" }, [
 			h("div", { class: "d-flex align-center" }, [
 				h("span", { class: "text-body-2 font-weight-medium" }, p.name),
-				isPluginInstalled(props.model, p.id) ? h("v-chip", { size: "x-small", color: "success", variant: "flat", class: "ml-2" }, () => "installed") : null,
-				h("v-spacer"),
+				isPluginInstalled(props.model, p.id) ? h(vc("v-chip"), { size: "x-small", color: "success", variant: "flat", class: "ml-2" }, () => "installed") : null,
+				h(vc("v-spacer")),
 				link(p.repo, "GitHub"),
 			]),
 			h("div", { class: "text-caption text-medium-emphasis" }, p.description),
@@ -167,21 +179,21 @@ export const AboutDialog = defineComponent({
 	emits: ["update:modelValue", ...panelEmits] as unknown as Array<string>,
 	setup(props, { emit }) {
 		const close = (): void => emit("update:modelValue", false);
-		return () => h("v-dialog", {
+		return () => h(vc("v-dialog"), {
 			modelValue: props.modelValue,
 			maxWidth: 580,
 			scrollable: true,
 			"onUpdate:modelValue": (v: unknown) => emit("update:modelValue", !!v),
 		}, {
-			default: () => h("v-card", {}, {
+			default: () => h(vc("v-card"), {}, {
 				default: () => [
-					h("v-card-title", { class: "d-flex align-center" }, [
-						h("v-icon", { class: "mr-2" }, () => "mdi-information-outline"),
+					h(vc("v-card-title"), { class: "d-flex align-center" }, () => [
+						h(vc("v-icon"), { class: "mr-2" }, () => "mdi-information-outline"),
 						h("span", {}, `About ${props.title}`),
-						h("v-spacer"),
-						h("v-btn", { icon: "mdi-close", variant: "text", size: "small", onClick: close }),
+						h(vc("v-spacer")),
+						h(vc("v-btn"), { icon: "mdi-close", variant: "text", size: "small", onClick: close }),
 					]),
-					h("v-card-text", {}, [renderContent(props, emit as Emit)]),
+					h(vc("v-card-text"), {}, () => [renderContent(props, emit as Emit)]),
 				],
 			}),
 		});

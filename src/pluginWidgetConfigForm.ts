@@ -15,9 +15,20 @@
  *     fieldRenderers: { omPath: MyOmPathField },   // optional, host-provided
  *   })
  */
-import { computed, defineComponent, h, type PropType, type VNode } from "vue";
+import { computed, defineComponent, h, resolveComponent, type PropType, type VNode } from "vue";
 
 import { clampFieldValue, type FieldRendererMap, type WidgetConfigSchema, type WidgetField } from "./widgetConfig.js";
+
+/**
+ * Resolve a globally-registered Vuetify component by tag name for use in h(). A hand-written render
+ * function (unlike the SFC template compiler) does not do this automatically - h("v-switch", ...)
+ * with a bare string tag creates an inert custom HTML element instead of invoking the real Vuetify
+ * component, so nothing visible/interactive renders (see dwc-plugin-runtime's aboutDialog.ts for the
+ * full story).
+ */
+function vc(name: string) {
+	return resolveComponent(name);
+}
 
 function fieldHint(f: WidgetField): string {
 	const base = f.description ? `${f.description} ` : "";
@@ -74,7 +85,7 @@ export const PluginWidgetConfigForm = defineComponent({
 
 			switch (f.type) {
 				case "toggle":
-					return h("v-switch", {
+					return h(vc("v-switch"), {
 						label: f.label,
 						title: fieldHint(f),
 						modelValue: !!val,
@@ -85,7 +96,7 @@ export const PluginWidgetConfigForm = defineComponent({
 						"onUpdate:modelValue": onUpdate,
 					});
 				case "select":
-					return h("v-select", {
+					return h(vc("v-select"), {
 						...common,
 						items: f.options ?? [],
 						itemTitle: "title",
@@ -94,9 +105,9 @@ export const PluginWidgetConfigForm = defineComponent({
 						"onUpdate:modelValue": onUpdate,
 					});
 				case "textarea":
-					return h("v-textarea", { ...common, modelValue: val, placeholder: f.placeholder, "onUpdate:modelValue": onUpdate });
+					return h(vc("v-textarea"), { ...common, modelValue: val, placeholder: f.placeholder, "onUpdate:modelValue": onUpdate });
 				case "number":
-					return h("v-text-field", {
+					return h(vc("v-text-field"), {
 						...common,
 						type: "number",
 						min: f.min,
@@ -106,7 +117,7 @@ export const PluginWidgetConfigForm = defineComponent({
 						"onUpdate:modelValue": onUpdate,
 					});
 				default: // text, color, or an unknown type with no injected renderer
-					return h("v-text-field", { ...common, modelValue: val, placeholder: f.placeholder, "onUpdate:modelValue": onUpdate });
+					return h(vc("v-text-field"), { ...common, modelValue: val, placeholder: f.placeholder, "onUpdate:modelValue": onUpdate });
 			}
 		}
 

@@ -12,7 +12,17 @@
  *   import { HelpTip } from "dwc-plugin-runtime";
  *   <HelpTip text="Explanation" :href="docUrl" />
  */
-import { computed, defineComponent, h, type PropType } from "vue";
+import { computed, defineComponent, h, resolveComponent, type PropType } from "vue";
+
+/**
+ * Resolve a globally-registered Vuetify component by tag name for use in h(). A hand-written render
+ * function (unlike the SFC template compiler) does not do this automatically - h("v-tooltip", ...)
+ * with a bare string tag creates an inert custom HTML element instead of invoking the real Vuetify
+ * component, so nothing visible renders (see dwc-plugin-runtime's aboutDialog.ts for the full story).
+ */
+function vc(name: string) {
+	return resolveComponent(name);
+}
 
 const STYLE_ID = "dwc-plugin-runtime-helptip-style";
 
@@ -45,7 +55,7 @@ export const HelpTip = defineComponent({
 		const tooltipText = computed(() => (props.href ? `${props.text} (click for docs)` : props.text));
 
 		const renderIcon = (activatorProps: Record<string, unknown>) => {
-			const icon = h("v-icon", {
+			const icon = h(vc("v-icon"), {
 				...activatorProps,
 				size: props.size,
 				class: "dpr-help-tip",
@@ -57,7 +67,7 @@ export const HelpTip = defineComponent({
 				: icon;
 		};
 
-		return () => h("v-tooltip", {
+		return () => h(vc("v-tooltip"), {
 			text: tooltipText.value,
 			location: "top",
 			maxWidth: 360,
