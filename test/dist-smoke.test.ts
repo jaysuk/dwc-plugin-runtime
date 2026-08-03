@@ -35,7 +35,9 @@ describe("built dist resolves as valid ESM", () => {
 		};
 		expect(mod.AboutDialog?.name).toBe("AboutDialog");
 		expect(mod.AboutDialog?.props).toHaveProperty("diagnosticState");
+		expect(mod.AboutDialog?.props).toHaveProperty("showUpdates");
 		expect(mod.AboutPanel?.name).toBe("AboutPanel");
 		expect(mod.AboutPanel?.props).toHaveProperty("diagnosticState");
+		expect(mod.AboutPanel?.props).toHaveProperty("showUpdates");
 	});
 });

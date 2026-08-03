@@ -91,6 +91,10 @@ const panelProps = {
 	autoCheck: { type: Boolean, default: true },
 	extraActions: { type: Array as PropType<Array<AboutExtraAction>>, default: () => [] },
 	showFamily: { type: Boolean, default: true },
+	/** Hide the Updates section for a plugin with no self-update wiring yet (e.g. nothing tagged/
+	 *  released to check against) - showing "Check now" with nothing behind it is worse than not
+	 *  showing it. Diagnostics/family/links stay unaffected. */
+	showUpdates: { type: Boolean, default: true },
 };
 
 const panelEmits = ["check-update", "apply-update", "toggle-auto-check"] as const;
@@ -179,10 +183,12 @@ function renderContent(props: PanelProps, emit: Emit, copy: { status: Ref<"idle"
 	if (props.supportUrl) { linkItems.push(link(props.supportUrl, "Support this plugin")); }
 	const links: Array<VNode> = linkItems.length ? [sectionTitle("Links"), h("div", { class: "d-flex flex-column ga-1" }, linkItems)] : [];
 
+	const updates: Array<VNode> = props.showUpdates ? [sectionTitle("Updates"), updateBanner, updateControls] : [];
+
 	return h("div", { class: "dpr-about" }, [
 		props.description ? h("div", { class: "text-body-2 mb-2" }, props.description) : null,
 		identity,
-		sectionTitle("Updates"), updateBanner, updateControls,
+		...updates,
 		sectionTitle("Diagnostics & support"), ...diagButtons,
 		...family,
 		...links,
