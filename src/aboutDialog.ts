@@ -75,8 +75,12 @@ const panelProps = {
 	model: { type: Object as PropType<unknown>, required: false },
 	/** Arbitrary plugin-specific data attached to the diagnostic report's `state` field (e.g. FL's
 	 *  live layout document, or a tuning plugin's active config) - opaque to this component, passed
-	 *  straight through to buildReport(). Not rendered here. */
-	diagnosticState: { type: null as unknown as PropType<unknown>, default: undefined },
+	 *  straight through to buildReport(). Not rendered here. Same "accept any object, no default"
+	 *  pattern as `model` above - adding `default: undefined` alongside `type: null` here previously
+	 *  made Vue's ExtractPropTypes infer the prop's type as literally `undefined`, rejecting any real
+	 *  value at every call site (caught by a consumer's own DWC-checkout typecheck, not this
+	 *  package's own suite - it has no such cross-check today). */
+	diagnosticState: { type: Object as PropType<unknown>, required: false },
 	/** Override the displayed version (else read from the installed plugin record). */
 	version: { type: String as PropType<string | undefined>, default: undefined },
 	repo: { type: String as PropType<string | undefined>, default: undefined },
