@@ -10,17 +10,23 @@ what lets it bundle into any plugin and survive DWC version changes.
 
 ## Install
 
+[Published on npm](https://www.npmjs.com/package/dwc-plugin-runtime) - a plain install needs no git
+access:
+
+```bash
+npm install dwc-plugin-runtime
+```
+
 ```jsonc
 // plugin package.json
 "dependencies": {
-  "dwc-plugin-runtime": "github:jaysuk/dwc-plugin-runtime#v0.1.0"
+  "dwc-plugin-runtime": "^0.8.7"
 }
 ```
 
-Installing from GitHub runs the package's `prepare` step, which builds `dist/` (compiled JS + types) so
-your plugin's Vite build and `vue-tsc` resolve it cleanly. Bump the tag explicitly to upgrade:
-`npm install "dwc-plugin-runtime@github:jaysuk/dwc-plugin-runtime#v0.2.0"` (a plain `npm install` keeps
-the cached git ref).
+A `github:jaysuk/dwc-plugin-runtime#vX.Y.Z` reference still works if you'd rather pin to a specific
+commit/tag directly - installing from GitHub runs the package's `prepare` step, which builds `dist/`
+(compiled JS + types) the same way the published tarball already does.
 
 ## Diagnostics
 
