@@ -203,6 +203,31 @@ describe("checkForUpdate", () => {
 		assets: [{ name: "Demo-1.0.1.zip", browser_download_url: "https://example/Demo-1.0.1.zip" }],
 	};
 
+	it("defaults to a zip that isn't the srcmap bundle, even when GitHub lists it first", async () => {
+		// A release commonly carries both -- order is whatever GitHub returns, not guaranteed.
+		const assets = [
+			{ name: "Demo-1.0.1-srcmap.zip", browser_download_url: "https://example/Demo-1.0.1-srcmap.zip" },
+			{ name: "Demo-1.0.1.zip", browser_download_url: "https://example/Demo-1.0.1.zip" },
+		];
+		const fetchImpl = vi.fn(async () => releaseResponse({ tag_name: "v1.0.1", assets }));
+		const r = await checkForUpdate({ ...base, assets: undefined, fetchImpl: fetchImpl as unknown as typeof fetch });
+		expect(r.assetName).toBe("Demo-1.0.1.zip");
+		expect(r.assetUrl).toBe("https://example/Demo-1.0.1.zip");
+	});
+
+	it("an explicit assetPattern still overrides the default", async () => {
+		const assets = [
+			{ name: "Demo-1.0.1.zip", browser_download_url: "https://example/Demo-1.0.1.zip" },
+			{ name: "Demo-1.0.1-debug.zip", browser_download_url: "https://example/Demo-1.0.1-debug.zip" },
+		];
+		const fetchImpl = vi.fn(async () => releaseResponse({ tag_name: "v1.0.1", assets }));
+		const r = await checkForUpdate({
+			...base, assets: undefined, assetPattern: /^Demo-[\d.]+-debug\.zip$/i,
+			fetchImpl: fetchImpl as unknown as typeof fetch,
+		});
+		expect(r.assetName).toBe("Demo-1.0.1-debug.zip");
+	});
+
 	it("flags a compatible plugin update", async () => {
 		const fetchImpl = vi.fn(async () => releaseResponse({
 			tag_name: "v1.0.1", html_url: "https://example/r", assets: base.assets,

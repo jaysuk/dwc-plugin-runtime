@@ -45,11 +45,28 @@ export interface CheckForUpdateOptions {
 	currentVersion: string;
 	/** Running DWC version. Defaults to `window.DWC.version`. */
 	dwcVersion?: string;
-	/** Matches the ZIP asset among a release's assets. Defaults to the first `*.zip`. */
+	/**
+	 * Matches the ZIP asset among a release's assets. Defaults to the first ZIP that doesn't look
+	 * like a source-map bundle (dwc-plugin-test-kit's `verify-build` publishes both
+	 * `<Plugin>-<version>.zip` and `<Plugin>-<version>-srcmap.zip` as separate release assets) — see
+	 * DEFAULT_ASSET_PATTERN. Still narrower and safer to pass an explicit pattern anchored to your
+	 * own plugin's exact filename (`duet-tool-align` and `duet-eddy-align` both do); this default is
+	 * a safety net for whoever doesn't, not a reason to skip it.
+	 */
 	assetPattern?: RegExp;
 	/** Injectable for tests / non-browser. Defaults to global `fetch`. */
 	fetchImpl?: typeof fetch;
 }
+
+/**
+ * Any `.zip` NOT ending `-srcmap.zip`. A release commonly carries both the installable plugin ZIP
+ * and a separate debug source-map ZIP (dwc-plugin-test-kit's `verify-build`); GitHub's asset order
+ * isn't guaranteed, so matching "any zip" and taking the first hit can silently pick the srcmap one
+ * instead — this is exactly the bug duet-tool-align hit for real before anchoring its own pattern.
+ * A negative lookbehind, not a substring/"contains" check, so a real plugin whose own name happens
+ * to contain "srcmap" wouldn't be excluded by accident.
+ */
+export const DEFAULT_ASSET_PATTERN = /(?<!-srcmap)\.zip$/i;
 
 /** Read the running DWC version exposed on the global API surface (alpha.7+); null on older builds. */
 export function runningDwcVersion(): string | null {
@@ -156,7 +173,7 @@ export async function checkForUpdate(options: CheckForUpdateOptions): Promise<Up
 	const { owner, repo, currentVersion } = options;
 	const doFetch = options.fetchImpl ?? fetch;
 	const runningDwc = options.dwcVersion ?? runningDwcVersion();
-	const assetPattern = options.assetPattern ?? /\.zip$/i;
+	const assetPattern = options.assetPattern ?? DEFAULT_ASSET_PATTERN;
 
 	const base: UpdateResult = {
 		scenario: "unknown", updateAvailable: false, currentVersion,
